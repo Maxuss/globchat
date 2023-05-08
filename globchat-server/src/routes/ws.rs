@@ -24,39 +24,58 @@ pub async fn ws_handler(
         String::from("Unknown browser")
     };
     info!("`{user_agent}` at {addr} connected.");
-    // finalize the upgrade process by returning upgrade callback.
-    // we can customize the callback by sending additional info such as address.
+
     ws.on_upgrade(move |socket| handle_socket_wrap(socket, addr))
 }
 
 #[tracing::instrument(name = "handle_socket", skip(socket))]
-async fn handle_socket_wrap(socket: WebSocket, who: SocketAddr) {
-    if let Err(e) = handle_socket(socket, who).await {
+async fn handle_socket_wrap(mut socket: WebSocket, who: SocketAddr) {
+    if let Err(e) = handle_socket(&mut socket, who).await {
         tracing::error!("Error when handling websocket for {who}: {e}");
+        socket
+            .send(Message::Text(
+                serde_json::to_string(&json! {{ "error": e.to_string() }}).unwrap(),
+            ))
+            .await
+            .ok();
     }
 }
 
-async fn handle_socket(mut socket: WebSocket, who: SocketAddr) -> anyhow::Result<()> {
-    if socket.send(Message::Ping(vec![1, 2, 3])).await.is_ok() {
-        info!("Pinged {}...", who);
-    } else {
-        println!("Could not send ping {}!", who);
-        // no Error here since the only thing we can do is to close the connection.
-        // If we can not send messages, there is no way to salvage the statemachine anyway.
-        return Ok(());
-    }
-
-    if let Some(msg) = socket.recv().await {
+async fn handle_socket(socket: &mut WebSocket, who: SocketAddr) -> anyhow::Result<()> {
+    while let Some(msg) = socket.recv().await {
         if let Ok(msg) = msg {
             info!("Got message: {msg:#?}");
-            socket
-                .send(Message::Text(serde_json::to_string(
-                    &json! {{ "received": true }},
-                )?))
-                .await?;
+
+            match msg {
+                Message::Text(txt) => {
+                    let res: serde_json::Value = serde_json::from_str(&txt)?;
+                    socket
+                        .send(Message::Text(serde_json::to_string(
+                            &json! {{ "received": true, "echo": res }},
+                        )?))
+                        .await?;
+                }
+                Message::Binary(_) => {
+                    socket
+                        .send(Message::Text(serde_json::to_string(
+                            &json! {{ "error": "binary messages not supported" }},
+                        )?))
+                        .await?;
+                    socket.send(Message::Close(None)).await?;
+                    return Ok(());
+                }
+                Message::Close(_) => break,
+                _ => {
+                    // ignoring other packets
+                    continue;
+                }
+            }
         } else {
-            println!("client {who} abruptly disconnected");
+            info!("client {who} abruptly disconnected");
         }
     }
+
+    info!("client {who} disconnected");
+
     Ok(())
 }

@@ -12,12 +12,25 @@ use crate::db::init_db;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// MongoDB connection string
     #[arg(long, short, default_value = "mongodb://localhost:27017")]
-    mongo: String,
+    mongo_uri: String,
 
+    /// MongoDB username
+    #[arg(long, default_value = "globchat")]
+    mongo_username: String,
+
+    /// MongoDB username
+    #[arg(long, default_value = "globchat")]
+    mongo_password: String,
+
+    /// Whether to use pretty logging instead of default compact
     #[arg(long, default_value_t = false)]
     pretty_logging: bool,
 }
+
+#[derive(Parser, Debug)]
+struct MongoArgs {}
 
 #[tokio::main]
 #[tracing::instrument]
@@ -42,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
             .init()
     }
 
-    let db = init_db(&args.mongo).await?;
+    let db = init_db(&args.mongo_uri, args.mongo_username, args.mongo_password).await?;
 
     let app = routes::route().with_state(db);
 
