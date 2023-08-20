@@ -1,6 +1,8 @@
 pub mod routes;
 pub mod db;
 pub mod state;
+pub mod response;
+pub mod model;
 
 use dotenv::dotenv;
 use tracing::info;
