@@ -4,6 +4,7 @@ pub mod state;
 pub mod response;
 pub mod model;
 pub mod err;
+pub mod extract;
 
 use dotenv::dotenv;
 use tracing::info;

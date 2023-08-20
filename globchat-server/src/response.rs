@@ -3,6 +3,7 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::err::{GlobError, GlobResult};
+use crate::model::{ChannelId, MessageId, UserId};
 
 //########## /auth/status
 #[derive(Serialize)]
@@ -13,7 +14,7 @@ pub struct AuthStatusResponse {
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthS0NextStep {
-    Proceed { uid: Uuid },
+    Proceed { uid: UserId },
     Login,
 }
 
@@ -48,6 +49,32 @@ pub struct AuthRegisterResponse {
 pub enum AuthRegisterStatus {
     Success,
     UserExists
+}
+
+//########## /info/user
+#[derive(Serialize)]
+pub struct UserResponse {
+    pub username: String,
+    pub user_id: UserId,
+    pub creation_time: u64,
+}
+
+//########## /info/channel
+#[derive(Serialize)]
+pub struct ChannelResponse {
+    pub name: String,
+    pub creation_time: u64,
+    pub creator: UserId,
+    pub channel_id: ChannelId
+}
+
+//########## /info/message
+#[derive(Serialize)]
+pub struct MessageResponse {
+    pub contents: String,
+    pub author: UserId,
+    pub timestamp: u64,
+    pub message_id: MessageId
 }
 
 // util

@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 pub type MessageId = i64;
 pub type ChannelId = i64;
-pub type UserId = Uuid;
+pub type UserId = i64;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UserData {

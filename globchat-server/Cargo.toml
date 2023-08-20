@@ -12,8 +12,9 @@ axum = { version = "0.6.20", features = ["ws", "macros", "headers"] }
 axum-macros = "0.3.8"
 chrono = { version = "0.4.26", features = ["serde"] }
 dotenv = "0.15.0"
+futures = "0.3.28"
 jsonwebtoken = "8.3.0"
-mongodb = { version = "2.6.1", features = ["bson-chrono-0_4", "bson-uuid-0_8"] }
+mongodb = { version = "2.6.1", features = ["bson-chrono-0_4", "bson-uuid-1"] }
 rand = "0.8.5"
 rs-snowflake = "0.6.0"
 serde = { version = "1.0.183", features = ["derive"] }

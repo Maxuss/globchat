@@ -17,7 +17,7 @@ use snowflake::SnowflakeIdGenerator;
 use uuid::Uuid;
 use crate::db::Database;
 use crate::err::{GlobError, GlobResult};
-use crate::model::{UserData};
+use crate::model::{UserData, UserId};
 use crate::response::{AuthLoginRequest, AuthLoginResponse, AuthLoginStatus, AuthRegisterResponse, AuthRegisterStatus, AuthS0NextStep, AuthStatusResponse, GlobResponse};
 use crate::state::{AppState, ConnectedClients, JwtSecret};
 
@@ -64,7 +64,7 @@ pub async fn auth_login(
 
 #[debug_handler(state = AppState)]
 pub async fn auth_register(
-    State(database): State<Database>,
+    State(AppState { database, snowflakes, .. }): State<AppState>,
     Json(AuthLoginRequest { username, password }): Json<AuthLoginRequest>
 ) -> GlobResponse<AuthRegisterResponse> {
     let user = database.users.find_one(doc! { "username": username.clone() }, None).await?;
@@ -75,7 +75,7 @@ pub async fn auth_register(
         database.users.insert_one(UserData {
             username,
             password: hash,
-            id: Uuid::new_v4(),
+            id: snowflakes.generate(),
             timestamp: Utc::now().timestamp() as u64,
             messages: Vec::new()
         }, None).await?;
@@ -105,7 +105,7 @@ struct Claims {
     iat: usize,
 }
 
-fn generate_jwt(uid: Uuid, jwt_secret: String) -> GlobResult<String> {
+fn generate_jwt(uid: i64, jwt_secret: String) -> GlobResult<String> {
     let now = Utc::now();
     let iat = now.timestamp() as usize;
     let exp = (now + chrono::Duration::hours(8)).timestamp() as usize;
@@ -122,7 +122,7 @@ fn generate_jwt(uid: Uuid, jwt_secret: String) -> GlobResult<String> {
     ).map_err(GlobError::from)
 }
 
-fn verify_token(jwt: &str, jwt_secret: &str) -> anyhow::Result<Uuid> {
+pub fn verify_token(jwt: &str, jwt_secret: &str) -> GlobResult<UserId> {
     let token = decode::<Claims>(&jwt, &DecodingKey::from_secret(jwt_secret.as_bytes()), &Validation::default())?;
-    Uuid::from_str(&token.claims.sub).map_err(anyhow::Error::from)
+    i64::from_str(&token.claims.sub).map_err(GlobError::from)
 }
