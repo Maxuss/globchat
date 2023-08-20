@@ -1,5 +1,12 @@
+pub mod routes;
+pub mod db;
+pub mod state;
+
+use dotenv::dotenv;
 use tracing::info;
 use tracing_subscriber::prelude::*;
+use crate::db::mongo_connect;
+use crate::routes::launch_api;
 
 fn prepare_logging() -> anyhow::Result<()> {
     let stdout_log = tracing_subscriber::fmt::layer().compact();
@@ -25,7 +32,11 @@ fn prepare_logging() -> anyhow::Result<()> {
 async fn main() -> anyhow::Result<()> {
     prepare_logging()?;
 
-    info!("Hello, world!");
+    info!("Initializing globchat...");
 
-    Ok(())
+    dotenv()?;
+    let db = mongo_connect(&std::env::var("MONGODB_PASSWORD")?).await?;
+
+    info!("Launching on localhost:14670");
+    launch_api(db).await
 }
