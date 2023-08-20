@@ -5,11 +5,9 @@ use std::env;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
-use axum::{debug_handler, Router, ServiceExt};
-use axum::response::IntoResponse;
+use axum::Router;
 use axum::routing::{get, post};
 use snowflake::SnowflakeIdGenerator;
-use tracing::info;
 use crate::db::Database;
 use crate::routes::auth::{auth_login, auth_register, auth_status};
 use crate::routes::info::{info_channel, info_messages, info_user};
@@ -38,10 +36,4 @@ pub async fn launch_api(db: Database) -> anyhow::Result<()> {
         .await?;
 
     Ok(())
-}
-
-#[debug_handler]
-async fn test_route() -> impl IntoResponse {
-    info!("hello world!");
-    return "!";
 }

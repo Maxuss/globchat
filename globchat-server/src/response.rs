@@ -1,7 +1,6 @@
 use axum::Json;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::err::{GlobError, GlobResult};
 use crate::model::{ChannelId, MessageId, UserId};
 

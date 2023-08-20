@@ -2,8 +2,7 @@ use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
-use futures::TryStreamExt;
-use mongodb::bson::{Bson, doc};
+use mongodb::bson::doc;
 use crate::err::GlobError;
 use crate::model::{UserData};
 use crate::routes::auth::verify_token;
@@ -25,9 +24,6 @@ impl FromRequestParts<AppState> for Authenticated {
                 return Err(GlobError::Unauthenticated)
             }
             let user_id = verify_token(token, &state.jwt_secret)?;
-            let user_id_str = user_id.to_string();
-            let found: Vec<UserData> = state.database.users.find(doc! { }, None).await?.try_collect().await?;
-            let doc = doc! { "id": user_id.clone() };
             let user = state.database.users.find_one(doc! { "id": user_id }, None).await?;
             return if let Some(user) = user {
                 Ok(Authenticated(user))

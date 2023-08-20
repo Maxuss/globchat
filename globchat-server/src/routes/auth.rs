@@ -1,25 +1,20 @@
-use std::num::NonZeroU32;
 use std::str::FromStr;
-use argon2::{Algorithm, Argon2, AssociatedData, Params, ParamsBuilder, PasswordHash, PasswordHasher, PasswordVerifier, Version};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::SaltString;
 use axum::extract::State;
-use axum::headers::{Authorization, HeaderMap};
-use axum::headers::authorization::{Bearer, Credentials};
+use axum::headers::Authorization;
+use axum::headers::authorization::Bearer;
 use axum::{Json, TypedHeader};
 use axum_macros::debug_handler;
 use chrono::Utc;
 use jsonwebtoken::{decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use mongodb::bson::doc;
-use rand::Rng;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use snowflake::SnowflakeIdGenerator;
-use uuid::Uuid;
-use crate::db::Database;
 use crate::err::{GlobError, GlobResult};
 use crate::model::{UserData, UserId};
 use crate::response::{AuthLoginRequest, AuthLoginResponse, AuthLoginStatus, AuthRegisterResponse, AuthRegisterStatus, AuthS0NextStep, AuthStatusResponse, GlobResponse};
-use crate::state::{AppState, ConnectedClients, JwtSecret};
+use crate::state::{AppState, JwtSecret};
 
 #[debug_handler]
 pub async fn auth_status(

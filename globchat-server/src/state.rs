@@ -1,9 +1,7 @@
-use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use crate::db::Database;
 use axum::extract::FromRef;
 use snowflake::SnowflakeIdGenerator;
-use uuid::Uuid;
 use crate::model::UserId;
 
 pub type JwtSecret = String;

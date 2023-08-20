@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 pub type MessageId = i64;
 pub type ChannelId = i64;

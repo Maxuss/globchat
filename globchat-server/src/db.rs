@@ -1,4 +1,3 @@
-use mongodb::bson::Document;
 use mongodb::{Client, Collection};
 use mongodb::options::ClientOptions;
 use tracing::info;
