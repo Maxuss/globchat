@@ -557,6 +557,7 @@ dependencies = [
  "rand",
  "rs-snowflake",
  "serde",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",

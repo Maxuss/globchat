@@ -3,6 +3,7 @@ pub mod db;
 pub mod state;
 pub mod response;
 pub mod model;
+pub mod err;
 
 use dotenv::dotenv;
 use tracing::info;

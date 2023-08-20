@@ -16,8 +16,9 @@ use serde::{Deserialize, Serialize};
 use snowflake::SnowflakeIdGenerator;
 use uuid::Uuid;
 use crate::db::Database;
+use crate::err::{GlobError, GlobResult};
 use crate::model::{UserData};
-use crate::response::{AuthLoginRequest, AuthLoginResponse, AuthLoginStatus, AuthRegisterResponse, AuthRegisterStatus, AuthS0NextStep, AuthStatusResponse};
+use crate::response::{AuthLoginRequest, AuthLoginResponse, AuthLoginStatus, AuthRegisterResponse, AuthRegisterStatus, AuthS0NextStep, AuthStatusResponse, GlobResponse};
 use crate::state::{AppState, ConnectedClients, JwtSecret};
 
 #[debug_handler]
@@ -25,12 +26,11 @@ pub async fn auth_status(
     State(jwt_secret): State<JwtSecret>,
     TypedHeader(Authorization(bearer)): TypedHeader<Authorization<Bearer>>
 ) -> Json<AuthStatusResponse> {
-    let bearer = bearer.token().to_owned();
-    let verified = verify_token(&bearer, &jwt_secret);
-    if let Ok(id) = verified {
-        return Json(AuthStatusResponse { next: AuthS0NextStep::Proceed { uid: id } })
+    let verified = verify_token(bearer.token(), &jwt_secret);
+    return if let Ok(id) = verified {
+        Json(AuthStatusResponse { next: AuthS0NextStep::Proceed { uid: id } })
     } else {
-        return Json(AuthStatusResponse { next: AuthS0NextStep::Login })
+        Json(AuthStatusResponse { next: AuthS0NextStep::Login })
     }
 }
 
@@ -38,27 +38,27 @@ pub async fn auth_status(
 pub async fn auth_login(
     State(AppState { database, connected_clients, jwt_secret, .. }): State<AppState>,
     Json(AuthLoginRequest { username, password }): Json<AuthLoginRequest>
-) -> Json<AuthLoginResponse> {
-    let user = database.users.find_one(doc! { "username": username }, None).await.unwrap();
+) -> GlobResponse<AuthLoginResponse> {
+    let user = database.users.find_one(doc! { "username": username }, None).await?;
     return if let Some(user) = user {
         let valid = verify_password(&password, &user.password);
         if !valid {
-            Json(AuthLoginResponse {
+            Ok(Json(AuthLoginResponse {
                 status: AuthLoginStatus::InvalidPassword
-            })
+            }))
         } else {
-            let jwt = generate_jwt(user.id, jwt_secret).unwrap();
+            let jwt = generate_jwt(user.id, jwt_secret)?;
             connected_clients.insert(user.id);
-            Json(AuthLoginResponse {
+            Ok(Json(AuthLoginResponse {
                 status: AuthLoginStatus::LoggedIn {
                     token: jwt
                 }
-            })
+            }))
         }
     } else {
-        Json(AuthLoginResponse {
+        Ok(Json(AuthLoginResponse {
             status: AuthLoginStatus::UserNotFound
-        })
+        }))
     }
 }
 
@@ -66,29 +66,29 @@ pub async fn auth_login(
 pub async fn auth_register(
     State(database): State<Database>,
     Json(AuthLoginRequest { username, password }): Json<AuthLoginRequest>
-) -> Json<AuthRegisterResponse> {
-    let user = database.users.find_one(doc! { "username": username.clone() }, None).await.unwrap();
+) -> GlobResponse<AuthRegisterResponse> {
+    let user = database.users.find_one(doc! { "username": username.clone() }, None).await?;
     return if let Some(_) = user {
-        return Json(AuthRegisterResponse { status: AuthRegisterStatus::UserExists })
+        Ok(Json(AuthRegisterResponse { status: AuthRegisterStatus::UserExists }))
     } else {
-        let hash = encode_password(&password);
+        let hash = encode_password(&password)?;
         database.users.insert_one(UserData {
             username,
             password: hash,
             id: Uuid::new_v4(),
             timestamp: Utc::now().timestamp() as u64,
             messages: Vec::new()
-        }, None).await.unwrap();
-        return Json(AuthRegisterResponse { status: AuthRegisterStatus::Success })
+        }, None).await?;
+        Ok(Json(AuthRegisterResponse { status: AuthRegisterStatus::Success }))
     }
 }
 
-fn encode_password(pwd: &str) -> String {
+fn encode_password(pwd: &str) -> GlobResult<String> {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
         .hash_password(pwd.as_bytes(), &salt)
         .map(|hash| hash.to_string())
-        .unwrap()
+        .map_err(GlobError::PasswordError)
 }
 
 fn verify_password(pwd: &str, hash: &str) -> bool {
@@ -105,7 +105,7 @@ struct Claims {
     iat: usize,
 }
 
-fn generate_jwt(uid: Uuid, jwt_secret: String) -> anyhow::Result<String> {
+fn generate_jwt(uid: Uuid, jwt_secret: String) -> GlobResult<String> {
     let now = Utc::now();
     let iat = now.timestamp() as usize;
     let exp = (now + chrono::Duration::hours(8)).timestamp() as usize;
@@ -119,7 +119,7 @@ fn generate_jwt(uid: Uuid, jwt_secret: String) -> anyhow::Result<String> {
         &Header::default(),
         &claims,
         &EncodingKey::from_secret(jwt_secret.as_bytes())
-    ).map_err(anyhow::Error::from)
+    ).map_err(GlobError::from)
 }
 
 fn verify_token(jwt: &str, jwt_secret: &str) -> anyhow::Result<Uuid> {
